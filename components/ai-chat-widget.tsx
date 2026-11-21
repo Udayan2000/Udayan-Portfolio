@@ -63,7 +63,7 @@ export function AiChatWidget() {
               {
                 id: 'welcome',
                 role: 'model',
-                text: "Hi! I'm Udayan's AI assistant. Whether you need a high-speed business website, e-commerce store, or custom web application, feel free to ask me anything about his work, pricing, or timelines!",
+                text: "Hi! I'm Udayan's AI assistant. Please share your email or project details so Udayan can reach out to you directly! You can also ask me anything about his projects, tech stack, or timelines.",
                 timestamp: new Date().toISOString(),
               },
             ]);
@@ -74,7 +74,7 @@ export function AiChatWidget() {
             {
               id: 'welcome',
               role: 'model',
-              text: "Hi! I'm Udayan's AI assistant. Feel free to ask about his web development services, project timelines, or guarantees!",
+              text: "Hi! I'm Udayan's AI assistant. Please share your email or project details so Udayan can reach out to you directly! You can also ask me anything about his projects, tech stack, or timelines.",
               timestamp: new Date().toISOString(),
             },
           ]);
