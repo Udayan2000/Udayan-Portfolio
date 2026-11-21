@@ -503,14 +503,14 @@ export const PROFILE_DOSSIER: ProfileDossier = {
   linkedin: "https://linkedin.com/in/Udayan-ghosh-dev",
   github: "https://github.com/Udayan-ghosh",
   website: "https://portfolio-Udayanghosh.dev",
-  summary: "Results-driven Full-Stack Engineer with 4+ years of hands-on experience building high-scale web products, resilient backend architectures, and production-grade software solutions for startups, scaleups, and enterprises globally. Specialized in Next.js App Router, React 19, TypeScript, PostgreSQL, Docker, and Cloud infrastructure. Recognized for exceptional engineering velocity, meticulous attention to UI/UX micro-interactions, clean maintainable codebases, and strong autonomous ownership from conception through production delivery.",
+  summary: "Results-driven Full-Stack Engineer with 4+ years of hands-on experience building high-scale web products, resilient backend architectures, and production-grade software solutions for startups, scaleups, and enterprises globally. Specialized in Next.js App Router, React 19, TypeScript, PostgreSQL, Laravel, Custom WordPress Sites, Wix Studio, Shopify, and Building AI Agents. Recognized for exceptional engineering velocity, meticulous attention to UI/UX micro-interactions, clean maintainable codebases, and strong autonomous ownership from conception through production delivery.",
   connections: "500+ connections",
   openToWork: true,
   education: [
     {
-      degree: "Bachelor of Technology (B.Tech) in Computer Science & Engineering",
-      institution: "State University of Technology",
-      period: "2017 - 2021",
+      degree: "B.Sc (B.Tech) in Computer Science & Engineering",
+      institution: "University of Calcutta, Bangabasi c ollege • B.Sc. in Computer Science ",
+      period: "2019 - 2022",
       details: "First Class with Distinction. Focused on Distributed Systems, Algorithms, Database Management Systems, and Software Engineering."
     }
   ],

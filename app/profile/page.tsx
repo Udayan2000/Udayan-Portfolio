@@ -29,8 +29,13 @@ type ViewMode = 'linkedin' | 'document';
 export default function ProfilePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('linkedin');
 
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadCV = () => {
+    const link = document.createElement('a');
+    link.href = '/Udayan_Ghosh_CV.pdf';
+    link.download = 'Udayan_Ghosh_CV.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -75,10 +80,10 @@ export default function ProfilePage() {
             </button>
           </div>
 
-          {/* Print / Download Button using Reusable Button Component */}
-          <Button variant="outline" onClick={handlePrint}>
+          {/* Direct Download Button using Reusable Button Component */}
+          <Button variant="outline" onClick={handleDownloadCV}>
             <DownloadIcon className="w-3.5 h-3.5 text-[#06b6d4]" />
-            <span>Print / Save PDF</span>
+            <span>Download CV (PDF)</span>
           </Button>
         </div>
       </div>
@@ -112,7 +117,7 @@ export default function ProfilePage() {
                 {/* Avatar with Open to Work Ring */}
                 <div className="relative -mt-16 sm:-mt-20 mb-3.5 inline-block">
                   <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border-4 border-white dark:border-zinc-900 bg-zinc-900 text-white flex items-center justify-center font-black text-2xl relative overflow-hidden">
-                    <span className="text-gradient-cyan">AG</span>
+                    <span className="text-gradient-cyan">UG</span>
                     <div className="absolute inset-0 rounded-full border-3 border-[#06b6d4] pointer-events-none" />
                   </div>
                   <div className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-[#06b6d4] border-2 border-white dark:border-zinc-900" title="Available for Hire" />
@@ -151,11 +156,13 @@ export default function ProfilePage() {
                   <div className="text-xs space-y-1 text-zinc-600 dark:text-zinc-400 shrink-0">
                     <div className="flex items-center gap-1.5">
                       <BriefcaseIcon className="w-3.5 h-3.5 text-[#06b6d4]" />
-                      <span className="font-semibold text-zinc-800 dark:text-zinc-200">Independent Freelance Practice</span>
+                      <span className="font-semibold text-zinc-800 dark:text-zinc-200">Independent Freelance </span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <GraduationCapIcon className="w-3.5 h-3.5 text-[#06b6d4]" />
-                      <span>State University of Technology</span>
+                      <span>University of Calcutta, Bangabasi c
+ollege • B.Sc. in Computer Science (2019 - 2022)
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -185,8 +192,9 @@ export default function ProfilePage() {
                     Direct Message
                   </Button>
 
-                  <Button variant="outline" onClick={handlePrint}>
-                    Save as PDF / CV
+                  <Button variant="outline" onClick={handleDownloadCV}>
+                    <DownloadIcon className="w-3.5 h-3.5 text-[#06b6d4]" />
+                    <span>Save as PDF / CV</span>
                   </Button>
                 </div>
               </div>
@@ -543,9 +551,9 @@ export default function ProfilePage() {
             {/* Document Footer Callout with Reusable Button */}
             <div className="pt-5 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500 flex-wrap gap-2">
               <span>Verified Confidential Engineering Dossier • Udayan Ghosh</span>
-              <Button variant="primary" onClick={handlePrint}>
+              <Button variant="primary" onClick={handleDownloadCV}>
                 <DownloadIcon className="w-3.5 h-3.5" />
-                <span>Export / Print Official PDF Copy</span>
+                <span>Download Official CV (PDF)</span>
               </Button>
             </div>
 

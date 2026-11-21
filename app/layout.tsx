@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AiChatWidget } from "@/components/ai-chat-widget";
 
 export const metadata: Metadata = {
   title: "Udayan Ghosh | Senior Full-Stack Developer & Freelance Consultant (4+ Years)",
@@ -67,6 +68,7 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col font-sans antialiased">
         <ThemeProvider>
           {children}
+          <AiChatWidget />
         </ThemeProvider>
       </body>
     </html>
