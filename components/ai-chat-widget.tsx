@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquareIcon, XIcon, SendIcon, SparklesIcon, CheckCircleIcon } from '@/components/ui/icons';
+import { API_ENDPOINTS } from '@/lib/api-config';
 
 interface Message {
   id: string;
@@ -9,8 +10,6 @@ interface Message {
   text: string;
   timestamp: string;
 }
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 
 const STARTER_PROMPTS = [
   "What's your typical website turnaround?",
@@ -53,7 +52,7 @@ export function AiChatWidget() {
       setSessionId(storedSession);
 
       // Try fetching previous history
-      fetch(`${BACKEND_URL}/api/chat/history/${storedSession}`)
+      fetch(API_ENDPOINTS.chatHistory(storedSession))
         .then((r) => r.json())
         .then((data) => {
           if (data.success && data.data?.messages && data.data.messages.length > 0) {
@@ -119,7 +118,7 @@ export function AiChatWidget() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/chat/message`, {
+      const response = await fetch(API_ENDPOINTS.chatMessage, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

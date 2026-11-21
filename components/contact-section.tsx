@@ -14,6 +14,7 @@ import {
   GithubIcon,
 } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
+import { API_ENDPOINTS } from '@/lib/api-config';
 
 export function ContactSection() {
   const [copied, setCopied] = useState(false);
@@ -39,7 +40,7 @@ export function ContactSection() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/contact', {
+      const res = await fetch(API_ENDPOINTS.contact, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
