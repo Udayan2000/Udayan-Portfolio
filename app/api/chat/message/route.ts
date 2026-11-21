@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import nodemailer, { Transporter } from 'nodemailer';
 import dns from 'dns';
 
@@ -9,9 +9,10 @@ try {
 }
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
-const CONTACT_RECEIVER_EMAIL = process.env.CONTACT_RECEIVER_EMAIL || '';
+const CONTACT_RECEIVER_EMAIL = process.env.CONTACT_RECEIVER_EMAIL || 'ghosh.udayan2000@gmail.com';
 
 const SYSTEM_INSTRUCTION = `
 You are Udayan Ghosh's dedicated personal AI assistant on his developer portfolio.
@@ -29,7 +30,7 @@ CRITICAL RULE - BUDGET & PRICING:
 
 KNOWLEDGE BASE:
 - Developer: Udayan Ghosh (Senior Full-Stack Developer & Solutions Architect, 4+ years exp).
-- Tech Stack: Next.js 16, React 19, TypeScript, Tailwind CSS v4, Node.js, Express, PostgreSQL, Prisma, Redis, Stripe, WordPress (custom Gutenberg).
+- Tech Stack: Next.js 16, React 19, TypeScript, Tailwind CSS v4, Node.js, Express, PostgreSQL, Prisma, Redis, Stripe, WordPress (custom Gutenberg), Wix Studio, Shopify, Building AI Agents.
 - Turnaround: 1 to 3 weeks for websites/e-commerce; 3 to 6 weeks for custom web applications and SaaS MVPs.
 - Guarantees: 100% full GitHub repository ownership, zero vendor lock-in, 30 days post-launch bug warranty.
 - Direct Contact: ghosh.udayan2000@gmail.com, WhatsApp/Phone: +91 89459 38993.
@@ -39,12 +40,18 @@ KNOWLEDGE BASE:
 const MAX_SESSIONS = 1000;
 const memorySessions = new Map<string, Array<{ role: 'user' | 'model'; text: string }>>();
 
+// Track alerted sessions to prevent email storms when 100+ concurrent users chat
+const alertedSessions = new Set<string>();
+
 function saveSessionMessage(sessionId: string, role: 'user' | 'model', text: string) {
   let history = memorySessions.get(sessionId);
   if (!history) {
     if (memorySessions.size >= MAX_SESSIONS) {
       const oldestKey = memorySessions.keys().next().value;
-      if (oldestKey) memorySessions.delete(oldestKey);
+      if (oldestKey) {
+        memorySessions.delete(oldestKey);
+        alertedSessions.delete(oldestKey);
+      }
     }
     history = [];
     memorySessions.set(sessionId, history);
@@ -55,14 +62,14 @@ function saveSessionMessage(sessionId: string, role: 'user' | 'model', text: str
   }
 }
 
-// Singleton pooled SMTP transporter for handling high concurrent traffic without socket exhaustion
+// Singleton pooled SMTP transporter for handling concurrent traffic
 let pooledTransporter: Transporter | null = null;
 function getTransporter() {
   if (!pooledTransporter) {
     pooledTransporter = nodemailer.createTransport({
       pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
+      maxConnections: 3,
+      maxMessages: 50,
       host: 'smtp.gmail.com',
       port: 465,
       secure: true,
@@ -70,6 +77,9 @@ function getTransporter() {
         user: SMTP_USER,
         pass: SMTP_PASS,
       },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
     });
   }
   return pooledTransporter;
@@ -160,15 +170,33 @@ export async function POST(req: NextRequest) {
     // Save model response to memory
     saveSessionMessage(currentSessionId, 'model', aiReply);
 
-    // 2. Dispatch instant email alert to Udayan (non-blocking for high concurrency)
-    sendEmailAlertNonBlocking({
-      clientMessage: cleanMessage,
-      aiReply,
-      clientEmail: detectedEmail,
-      clientPhone: detectedPhone,
-      clientName: visitorName,
-      sessionId: currentSessionId,
-    });
+    // 2. High-Concurrency Lead Qualification Filter:
+    // Determine if this message warrants an email alert to avoid flooding the mailbox when 100+ users chat:
+    const isContactProvided = Boolean(detectedEmail || detectedPhone);
+    const isProjectOrHireIntent = Boolean(
+      cleanMessage.match(/(hire|quote|budget|cost|price|rate|timeline|proposal|project|build|start|contract|consult|develop|help|need)/i)
+    );
+    const alreadyAlerted = alertedSessions.has(currentSessionId);
+
+    // Alert immediately if contact details are volunteered, or if it's the first project inquiry of this session
+    const shouldSendAlert = isContactProvided || (!alreadyAlerted && isProjectOrHireIntent) || (!alreadyAlerted && history.length <= 2);
+
+    if (shouldSendAlert) {
+      alertedSessions.add(currentSessionId);
+
+      // Use Next.js 15+ after() to run asynchronous email dispatch safely after sending the response
+      // This tells Vercel/Serverless: keep the container execution alive until the email dispatch completes!
+      after(async () => {
+        await dispatchLeadEmail({
+          clientMessage: cleanMessage,
+          aiReply,
+          clientEmail: detectedEmail,
+          clientPhone: detectedPhone,
+          clientName: visitorName,
+          sessionId: currentSessionId,
+        });
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -199,72 +227,109 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Non-blocking fire-and-forget email dispatch
-function sendEmailAlertNonBlocking(data: {
+// Serverless-safe email dispatcher supporting Resend HTTPS API and Gmail SMTP with timeout protection
+async function dispatchLeadEmail(data: {
   clientMessage: string;
   aiReply: string;
   clientEmail?: string;
   clientPhone?: string;
   clientName?: string;
   sessionId: string;
-}) {
-  setImmediate(async () => {
+}): Promise<boolean> {
+  const hasClientEmail = Boolean(data.clientEmail && data.clientEmail.includes('@'));
+  const subject = 'A client just reached out to you!';
+
+  const nowFormatted = new Date().toLocaleString('en-US', {
+    timeZone: 'Asia/Kolkata',
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #fafafa; padding: 20px; color: #18181b;">
+      <div style="max-width: 540px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e4e4e7; border-radius: 8px; padding: 24px;">
+        <h2 style="margin: 0 0 16px 0; color: #09090b; font-size: 20px; font-weight: 700; border-bottom: 2px solid #06b6d4; padding-bottom: 12px;">
+          A client just reached out to you!
+        </h2>
+
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 13px; font-weight: 700; color: #71717a; text-transform: uppercase; margin-bottom: 6px;">
+            Client Message:
+          </div>
+          <div style="padding: 14px 16px; background-color: #f4f4f5; border-radius: 6px; font-size: 15px; color: #18181b; line-height: 1.5; white-space: pre-wrap;">${escapeHtml(data.clientMessage)}</div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 13px; font-weight: 700; color: #0891b2; text-transform: uppercase; margin-bottom: 6px;">
+            AI Reply:
+          </div>
+          <div style="padding: 14px 16px; background-color: #ecfeff; border-left: 3px solid #06b6d4; border-radius: 6px; font-size: 14px; color: #164e63; line-height: 1.5; white-space: pre-wrap;">${escapeHtml(data.aiReply)}</div>
+        </div>
+
+        <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #f4f4f5; font-size: 13px; color: #52525b; line-height: 1.8;">
+          ${hasClientEmail ? `<div><strong>Email:</strong> <a href="mailto:${data.clientEmail}" style="color: #06b6d4; font-weight: 600;">${data.clientEmail}</a></div>` : ''}
+          ${data.clientPhone ? `<div><strong>Phone:</strong> <span style="color: #09090b; font-weight: 600;">${data.clientPhone}</span></div>` : ''}
+          <div><strong>Time:</strong> ${nowFormatted} IST</div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Option 1: Modern Transactional HTTPS API (Resend) - Best for 100+ concurrent users in serverless
+  if (RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Portfolio Alerts <onboarding@resend.dev>',
+          to: [CONTACT_RECEIVER_EMAIL],
+          reply_to: hasClientEmail ? data.clientEmail : undefined,
+          subject,
+          html: htmlContent,
+        }),
+      });
+      if (res.ok) {
+        return true;
+      }
+      const errText = await res.text();
+      console.warn('[Chat Email] Resend API error:', errText);
+    } catch (err) {
+      console.error('[Chat Email] Resend error:', err);
+    }
+  }
+
+  // Option 2: Gmail SMTP with connection timeout protection
+  if (SMTP_USER && SMTP_PASS) {
     try {
       const transporter = getTransporter();
-
-      const nowFormatted = new Date().toLocaleString('en-US', {
-        timeZone: 'Asia/Kolkata',
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      });
-
-      const hasClientEmail = Boolean(data.clientEmail && data.clientEmail.includes('@'));
-      const subject = 'A client just reached out to you!';
-
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #fafafa; padding: 20px; color: #18181b;">
-          <div style="max-width: 540px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e4e4e7; border-radius: 8px; padding: 24px;">
-            <h2 style="margin: 0 0 16px 0; color: #09090b; font-size: 20px; font-weight: 700; border-bottom: 2px solid #06b6d4; padding-bottom: 12px;">
-              A client just reached out to you!
-            </h2>
-
-            <div style="margin-bottom: 16px;">
-              <div style="font-size: 13px; font-weight: 700; color: #71717a; text-transform: uppercase; margin-bottom: 6px;">
-                Client Message:
-              </div>
-              <div style="padding: 14px 16px; background-color: #f4f4f5; border-radius: 6px; font-size: 15px; color: #18181b; line-height: 1.5; white-space: pre-wrap;">${escapeHtml(data.clientMessage)}</div>
-            </div>
-
-            <div style="margin-bottom: 16px;">
-              <div style="font-size: 13px; font-weight: 700; color: #0891b2; text-transform: uppercase; margin-bottom: 6px;">
-                AI Reply:
-              </div>
-              <div style="padding: 14px 16px; background-color: #ecfeff; border-left: 3px solid #06b6d4; border-radius: 6px; font-size: 14px; color: #164e63; line-height: 1.5; white-space: pre-wrap;">${escapeHtml(data.aiReply)}</div>
-            </div>
-
-            <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid #f4f4f5; font-size: 13px; color: #52525b; line-height: 1.8;">
-              ${hasClientEmail ? `<div><strong>Email:</strong> <a href="mailto:${data.clientEmail}" style="color: #06b6d4; font-weight: 600;">${data.clientEmail}</a></div>` : ''}
-              ${data.clientPhone ? `<div><strong>Phone:</strong> <span style="color: #09090b; font-weight: 600;">${data.clientPhone}</span></div>` : ''}
-              <div><strong>Time:</strong> ${nowFormatted} IST</div>
-            </div>
-          </div>
-        </body>
-        </html>
-      `;
-
-      await transporter.sendMail({
-        from: `"Portfolio Alerts" <${SMTP_USER}>`,
-        to: CONTACT_RECEIVER_EMAIL,
-        replyTo: hasClientEmail ? data.clientEmail : SMTP_USER,
-        subject,
-        html: htmlContent,
-      });
+      await Promise.race([
+        transporter.sendMail({
+          from: `"Portfolio Alerts" <${SMTP_USER}>`,
+          to: CONTACT_RECEIVER_EMAIL,
+          replyTo: hasClientEmail ? data.clientEmail : SMTP_USER,
+          subject,
+          html: htmlContent,
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('SMTP transmission timed out after 8s')), 8000)
+        ),
+      ]);
+      return true;
     } catch (err) {
-      console.error('Non-blocking email alert error:', err);
+      console.error('[Chat Email] SMTP transmission failed:', err);
+      return false;
     }
-  });
+  }
+
+  console.warn('[Chat Email] No active email provider configured (missing RESEND_API_KEY and SMTP_USER/SMTP_PASS in environment variables).');
+  return false;
 }
 
 function generateShortDynamicResponse(query: string, email?: string, phone?: string): string {

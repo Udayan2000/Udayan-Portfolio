@@ -8,17 +8,18 @@ try {
   // Ignore
 }
 
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const SMTP_USER = process.env.SMTP_USER || '';
 const SMTP_PASS = process.env.SMTP_PASS || '';
-const CONTACT_RECEIVER_EMAIL = process.env.CONTACT_RECEIVER_EMAIL || '';
+const CONTACT_RECEIVER_EMAIL = process.env.CONTACT_RECEIVER_EMAIL || 'ghosh.udayan2000@gmail.com';
 
 let transporter: Transporter | null = null;
 function getTransporter() {
   if (!transporter) {
     transporter = nodemailer.createTransport({
       pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
+      maxConnections: 3,
+      maxMessages: 50,
       host: 'smtp.gmail.com',
       port: 465,
       secure: true,
@@ -26,9 +27,71 @@ function getTransporter() {
         user: SMTP_USER,
         pass: SMTP_PASS,
       },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
     });
   }
   return transporter;
+}
+
+async function sendNotificationEmail(options: {
+  subject: string;
+  html: string;
+  replyTo?: string;
+}): Promise<boolean> {
+  // Option 1: Modern Transactional HTTPS API (Resend) - Best for serverless with 0 SMTP port/IP restrictions
+  if (RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'Portfolio Contact <onboarding@resend.dev>',
+          to: [CONTACT_RECEIVER_EMAIL],
+          reply_to: options.replyTo,
+          subject: options.subject,
+          html: options.html,
+        }),
+      });
+      if (res.ok) {
+        return true;
+      }
+      const errText = await res.text();
+      console.warn('[Contact Email] Resend API error:', errText);
+    } catch (err) {
+      console.error('[Contact Email] Resend error:', err);
+    }
+  }
+
+  // Option 2: Gmail SMTP with connection timeout race to prevent serverless freeze
+  if (SMTP_USER && SMTP_PASS) {
+    try {
+      const mailer = getTransporter();
+      await Promise.race([
+        mailer.sendMail({
+          from: `"Portfolio Contact" <${SMTP_USER}>`,
+          to: CONTACT_RECEIVER_EMAIL,
+          replyTo: options.replyTo || SMTP_USER,
+          subject: options.subject,
+          html: options.html,
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('SMTP transmission timed out after 8s')), 8000)
+        ),
+      ]);
+      return true;
+    } catch (err) {
+      console.error('[Contact Email] SMTP transmission failed:', err);
+      return false;
+    }
+  }
+
+  console.warn('[Contact Email] No active email provider configured (missing RESEND_API_KEY and SMTP_USER/SMTP_PASS in environment variables).');
+  return false;
 }
 
 export async function POST(req: NextRequest) {
@@ -82,20 +145,11 @@ export async function POST(req: NextRequest) {
       </html>
     `;
 
-    // Non-blocking fire-and-forget email dispatch
-    setImmediate(async () => {
-      try {
-        const mailer = getTransporter();
-        await mailer.sendMail({
-          from: `"Portfolio Contact" <${SMTP_USER}>`,
-          to: CONTACT_RECEIVER_EMAIL,
-          replyTo: email,
-          subject,
-          html: htmlContent,
-        });
-      } catch (err) {
-        console.error('Failed to send contact inquiry email:', err);
-      }
+    // Await delivery with timeout race to guarantee dispatch before serverless container suspends
+    await sendNotificationEmail({
+      subject,
+      html: htmlContent,
+      replyTo: email,
     });
 
     return NextResponse.json({
