@@ -108,49 +108,7 @@ export function HeroSection() {
             </p>
 
             {/* Interactive AI Prompt Command Capsule (Realistic AI Feature) */}
-            <div className="p-3 rounded-[4px] border border-zinc-200 dark:border-zinc-800 bg-white/70 dark:bg-zinc-900/70 backdrop-blur-md realistic-card text-left">
-              <div className="flex items-center justify-between pb-2 text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
-                <span className="flex items-center gap-1.5 font-bold text-zinc-800 dark:text-zinc-200">
-                  <BotIcon className="w-3.5 h-3.5 text-[#06b6d4]" />
-                  <span>Interactive AI Copilot</span>
-                </span>
-                <span className="text-[10px] text-[#06b6d4] font-semibold">Gemini 3.5 • Instant Replies</span>
-              </div>
-
-              {/* Prompt Input Form */}
-              <form onSubmit={handlePromptSubmit} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={aiPromptInput}
-                  onChange={(e) => setAiPromptInput(e.target.value)}
-                  placeholder="Ask my AI copilot about project timeline, rates, tech..."
-                  className="flex-1 h-[40px] px-3 text-xs rounded-[4px] bg-zinc-50 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-700 focus:border-[#06b6d4] outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 font-sans"
-                />
-                <button
-                  type="submit"
-                  aria-label="Send query to AI copilot"
-                  className="h-[40px] px-3.5 rounded-[4px] bg-[#0219ac] hover:bg-[#0219ac]/90 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
-                >
-                  <span>Ask AI</span>
-                  <SendIcon className="w-3 h-3 text-[#06b6d4]" />
-                </button>
-              </form>
-
-              {/* Quick-Trigger Prompt Chips */}
-              <div className="mt-2.5 pt-2 border-t border-zinc-200/60 dark:border-zinc-800/60 flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-mono text-zinc-400 mr-0.5">Quick Ask:</span>
-                {QUICK_PROMPTS.map((prompt, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => triggerAiChat(prompt.query, true)}
-                    className="text-[11px] px-2 py-0.5 rounded-[3px] bg-zinc-100 dark:bg-zinc-800/80 hover:bg-[#06b6d4]/10 border border-zinc-200 dark:border-zinc-700/80 hover:border-[#06b6d4]/40 text-zinc-700 dark:text-zinc-300 hover:text-[#06b6d4] transition-colors cursor-pointer leading-tight"
-                  >
-                    {prompt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+         
 
             {/* CTA Buttons (#0219ac, 44px uniform height, 4px radius) */}
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3.5 pt-1">

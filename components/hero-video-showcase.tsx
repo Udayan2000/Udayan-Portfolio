@@ -149,9 +149,7 @@ export function HeroVideoShowcase() {
           {/* Floating AI Telemetry HUD Pill (Top-Right) */}
           <div className="absolute top-3 right-3 flex items-center gap-2 px-2.5 py-1 rounded-[4px] bg-black/75 backdrop-blur-md border border-[#06b6d4]/40 text-white z-10 shadow-lg pointer-events-none">
             <span className="w-1.5 h-1.5 rounded-full bg-[#06b6d4] animate-pulse" />
-            <span className="text-[11px] font-mono tracking-tight text-zinc-200">
-              Gemini 3.5 Flash Lite
-            </span>
+           
             <span className="text-[10px] text-[#06b6d4] font-mono font-semibold hidden sm:inline">
               • 38ms TTFT
             </span>
