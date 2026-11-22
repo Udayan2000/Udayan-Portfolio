@@ -32,12 +32,37 @@ export function AiChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const handleSendMessageRef = useRef<(text?: string) => Promise<void>>(async () => {});
 
   // Clear typing timers on unmount
   useEffect(() => {
     return () => {
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
     };
+  }, []);
+
+  // Listen for global open chat triggers from Hero or other sections
+  useEffect(() => {
+    const handleOpenChat = (event: Event) => {
+      const customEvent = event as CustomEvent<{ message?: string; autoSend?: boolean }>;
+      setIsOpen(true);
+      if (customEvent.detail?.message) {
+        const msg = customEvent.detail.message;
+        if (customEvent.detail.autoSend) {
+          setTimeout(() => {
+            handleSendMessageRef.current(msg);
+          }, 300);
+        } else {
+          setInputValue(msg);
+          setTimeout(() => {
+            inputRef.current?.focus();
+          }, 150);
+        }
+      }
+    };
+
+    window.addEventListener('open-ai-chat', handleOpenChat);
+    return () => window.removeEventListener('open-ai-chat', handleOpenChat);
   }, []);
 
   // Initialize or restore session ID from localStorage
@@ -191,6 +216,8 @@ export function AiChatWidget() {
       setMessages((prev) => [...prev, errorMsg]);
     }
   };
+
+  handleSendMessageRef.current = handleSendMessage;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
